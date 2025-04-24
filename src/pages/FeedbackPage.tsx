@@ -4,6 +4,7 @@ import FeedbackSmiley from '../components/FeedbackSmiley';
 import { useActiveQuestion } from '../hooks/useActiveQuestion';
 import { useResponses } from '../hooks/useResponses';
 import { useQuestions } from '../hooks/useQuestions';
+import { supabase } from '../lib/supabaseClient';
 
 const FeedbackPage: React.FC = () => {
   const { questions } = useQuestions();
@@ -12,6 +13,7 @@ const FeedbackPage: React.FC = () => {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [questionsFromSupabase, setQuestionsFromSupabase] = useState<any[]>([]);
 
   // Debug log
   useEffect(() => {
@@ -19,6 +21,32 @@ const FeedbackPage: React.FC = () => {
     console.log('Current index:', currentQuestionIndex);
     console.log('Current question:', questions[currentQuestionIndex]);
   }, [questions, currentQuestionIndex]);
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      // Forceer anonieme toegang voor deze query
+      const { data, error } = await supabase
+        .from('feedback_questions')
+        .select('*')
+        .eq('active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching questions:', error);
+        return;
+      }
+
+      console.log('Fetched questions:', data); // Debug log
+      setQuestionsFromSupabase(data || []);
+    };
+
+    fetchQuestions();
+  }, []);
+
+  // Log wanneer questions verandert
+  useEffect(() => {
+    console.log('Questions state updated:', questionsFromSupabase);
+  }, [questionsFromSupabase]);
 
   const handleFeedback = async (rating: number) => {
     const currentQuestion = questions[currentQuestionIndex];
