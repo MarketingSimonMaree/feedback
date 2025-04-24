@@ -14,6 +14,7 @@ const FeedbackPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [questionsFromSupabase, setQuestionsFromSupabase] = useState<any[]>([]);
+  const [isCompleted, setIsCompleted] = useState(false);
 
   // Debug log
   useEffect(() => {
@@ -24,7 +25,6 @@ const FeedbackPage: React.FC = () => {
 
   useEffect(() => {
     const fetchQuestions = async () => {
-      // Forceer anonieme toegang voor deze query
       const { data, error } = await supabase
         .from('feedback_questions')
         .select('*')
@@ -33,6 +33,7 @@ const FeedbackPage: React.FC = () => {
 
       if (error) {
         console.error('Error fetching questions:', error);
+        setError(error.message);
         return;
       }
 
@@ -48,31 +49,61 @@ const FeedbackPage: React.FC = () => {
     console.log('Questions state updated:', questionsFromSupabase);
   }, [questionsFromSupabase]);
 
-  const handleFeedback = async (rating: number) => {
-    const currentQuestion = questions[currentQuestionIndex];
-    if (!currentQuestion) return;
-
+  const handleFeedback = async (feedback: any) => {
     try {
-      setSubmitting(true);
+      console.log('Submitting feedback:', feedback);
       
-      await submitResponse({
-        question_id: currentQuestion.id,
-        rating: rating > 0 ? 1 : -1
-      });
+      const { error } = await supabase
+        .from('feedback_responses')
+        .insert([
+          {
+            question_id: questions[currentQuestionIndex].id,
+            ...feedback,
+            response_type: 'anonymous'
+          }
+        ]);
 
-      if (currentQuestionIndex === questions.length - 1) {
-        setSubmitted(true);
-      } else {
+      if (error) throw error;
+
+      if (currentQuestionIndex < questions.length - 1) {
         setCurrentQuestionIndex(prev => prev + 1);
+      } else {
+        // Laatste vraag is beantwoord
+        setIsCompleted(true);
       }
-
-    } catch (err) {
-      console.error('Full feedback error:', err);
-      setError('Error submitting feedback');
-    } finally {
-      setSubmitting(false);
+    } catch (error) {
+      console.error('Full feedback error:', error);
     }
   };
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-red-500">Error: {error}</p>
+      </div>
+    );
+  }
+
+  if (!questions.length) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">No active questions at the moment.</p>
+      </div>
+    );
+  }
+
+  const currentQuestion = questions[currentQuestionIndex];
+
+  if (isCompleted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="max-w-md w-full p-6 bg-white rounded-lg shadow-lg text-center">
+          <h2 className="text-2xl font-semibold mb-4">Bedankt voor je feedback!</h2>
+          <p className="text-gray-600">We waarderen je mening en gebruiken deze om onze service te verbeteren.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -129,17 +160,17 @@ const FeedbackPage: React.FC = () => {
                 className="bg-white p-8 shadow-lg"
               >
                 <h2 className="text-xl font-bold mb-6 text-center">
-                  {questions[currentQuestionIndex].question_text}
+                  {currentQuestion.question_text}
                 </h2>
                 
                 <div className="flex justify-center space-x-8 mt-8">
                   <FeedbackSmiley 
                     isHappy={true} 
-                    onClick={() => handleFeedback(1)} 
+                    onClick={() => handleFeedback({ is_happy: true })} 
                   />
                   <FeedbackSmiley 
                     isHappy={false} 
-                    onClick={() => handleFeedback(-1)} 
+                    onClick={() => handleFeedback({ is_happy: false })} 
                   />
                 </div>
               </motion.div>
