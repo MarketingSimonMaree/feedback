@@ -6,7 +6,7 @@ import { useResponses } from '../hooks/useResponses';
 import { useQuestions } from '../hooks/useQuestions';
 import { supabase } from '../lib/supabaseClient';
 
-const FeedbackPage: React.FC = () => {
+const FeedbackPage = ({ type }: { type: string }) => {
   const { questions } = useQuestions();
   const { submitResponse } = useResponses();
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -51,15 +51,16 @@ const FeedbackPage: React.FC = () => {
 
   const handleFeedback = async (feedback: any) => {
     try {
-      console.log('Submitting feedback:', feedback);
-      
+      // Bepaal het juiste type op basis van de URL
+      const responseType = type === 'winkel' ? 'winkel' : 'timmerman';
+
       const { error } = await supabase
         .from('feedback_responses')
         .insert([
           {
             question_id: questions[currentQuestionIndex].id,
             ...feedback,
-            response_type: 'anonymous'
+            response_type: responseType  // Gebruik het juiste type
           }
         ]);
 
